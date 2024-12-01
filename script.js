@@ -1,121 +1,129 @@
-const cells = document.querySelectorAll('.cell');
-const turnInfo = document.getElementById('turn-info');
-const resetBtn = document.getElementById('reset-btn');
+// script.js
 
-let gameState = Array(9).fill(null); // Estado inicial del tablero
-let currentPlayer = 'red'; // Jugador inicial
-let remainingPieces = { red: 3, blue: 3 }; // Piezas restantes por jugador
-let selectedPieceIndex = null; // Índice de la pieza seleccionada para mover
+let turn = "black"; // Empieza el jugador negro
+let selectedCell = null; // Celda seleccionada para mover
+const boardState = {}; // Estado del tablero
 
-// Configuración del juego
-cells.forEach((cell, index) => {
-  cell.addEventListener('click', () => handleCellClick(cell, index));
-});
+const winningCombinations = [
+    ["1-1", "1-2", "1-3"],
+    ["2-1", "2-2", "2-3"],
+    ["3-1", "3-2", "3-3"],
+    ["1-1", "2-1", "3-1"],
+    ["1-2", "2-2", "3-2"],
+    ["1-3", "2-3", "3-3"],
+];
 
-// Manejar clics en celdas
-function handleCellClick(cell, index) {
-  // Fase 1: Colocar piezas
-  if (remainingPieces[currentPlayer] > 0) {
-    if (gameState[index] !== null) {
-      alert('Esta posición ya está ocupada.');
-      return;
+// Inicializar el tablero
+function initializeBoard() {
+    const initialPositions = {
+        "1-1": "black",
+        "1-3": "black",
+        "3-2": "black",
+        "1-2": "orange",
+        "3-1": "orange",
+        "3-3": "orange",
+    };
+
+    // Colocar las fichas iniciales
+    Object.entries(initialPositions).forEach(([cellId, color]) => {
+        const cell = document.getElementById(cellId);
+        const piece = document.createElement("div");
+        piece.className = `piece ${color}`;
+        cell.appendChild(piece);
+        boardState[cellId] = color;
+    });
+
+    updateTurnText();
+}
+
+// Actualizar el texto del turno
+function updateTurnText() {
+    document.getElementById("turnText").textContent = `Turno: ${turn === "black" ? "Negras" : "Naranjas"}`;
+}
+
+// Verificar si hay un ganador
+function checkWin() {
+    for (const combination of winningCombinations) {
+        const [a, b, c] = combination;
+        if (boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]) {
+            return boardState[a];
+        }
     }
-    placePiece(cell, index);
-  } 
-  // Fase 2: Mover piezas
-  else {
-    movePiece(cell, index);
-  }
-
-  // Verificar si alguien ganó
-  if (checkWin(currentPlayer)) {
-    alert(`${currentPlayer.toUpperCase()} gana el juego!`);
-    resetGame();
-    return;
-  }
-
-  // Cambiar turno
-  currentPlayer = currentPlayer === 'red' ? 'blue' : 'red';
-  turnInfo.textContent = `Turno: ${currentPlayer === 'red' ? 'Rojo' : 'Azul'}`;
+    return null;
 }
 
-function placePiece(cell, index) {
-  cell.style.backgroundColor = currentPlayer;
-  gameState[index] = currentPlayer;
-  cell.classList.add('taken');
-  remainingPieces[currentPlayer]--;
+// Manejar el clic en una celda
+function handleCellClick(event) {
+    const clickedCell = event.currentTarget.id;
+
+    if (selectedCell) {
+        // Si hay una celda seleccionada, intenta mover la ficha
+        if (isValidMove(selectedCell, clickedCell)) {
+            movePiece(selectedCell, clickedCell);
+            selectedCell = null; // Deselecciona
+        } else {
+            alert("Movimiento no válido");
+        }
+    } else if (boardState[clickedCell] === turn) {
+        // Selecciona la celda si pertenece al jugador en turno
+        selectedCell = clickedCell;
+        document.getElementById(clickedCell).classList.add("selected");
+    }
 }
 
-function movePiece(cell, index) {
-  if (selectedPieceIndex === null) {
-    // Seleccionar pieza propia
-    if (gameState[index] === currentPlayer) {
-      selectedPieceIndex = index;
-      cell.classList.add('selected');
+// Mover una ficha
+function movePiece(fromCell, toCell) {
+    const fromElement = document.getElementById(fromCell);
+    const toElement = document.getElementById(toCell);
+
+    const piece = fromElement.querySelector(".piece");
+    fromElement.removeChild(piece);
+    fromElement.classList.remove("selected");
+
+    toElement.appendChild(piece);
+
+    // Actualizar el estado
+    boardState[toCell] = boardState[fromCell];
+    delete boardState[fromCell];
+
+    // Cambiar turno y verificar victoria
+    const winner = checkWin();
+    if (winner) {
+        alert(`¡Ganador: ${winner === "black" ? "Negras" : "Naranjas"}!`);
+        resetGame();
     } else {
-      alert('Debes seleccionar una de tus piezas.');
+        turn = turn === "black" ? "orange" : "black";
+        updateTurnText();
     }
-  } else {
-    // Mover pieza seleccionada
-    if (gameState[index] !== null) {
-      alert('La posición está ocupada.');
-      return;
-    }
-    if (!isAdjacent(selectedPieceIndex, index)) {
-      alert('Solo puedes mover a una posición adyacente.');
-      return;
-    }
-
-    // Actualizar estado
-    cells[selectedPieceIndex].classList.remove('selected');
-    cells[selectedPieceIndex].style.backgroundColor = '';
-    gameState[selectedPieceIndex] = null;
-
-    cell.style.backgroundColor = currentPlayer;
-    gameState[index] = currentPlayer;
-    selectedPieceIndex = null;
-  }
 }
 
-// Verificar si una celda es adyacente
-function isAdjacent(fromIndex, toIndex) {
-  const adjacentPositions = {
-    0: [1, 3],
-    1: [0, 2, 4],
-    2: [1, 5],
-    3: [0, 4, 6],
-    4: [1, 3, 5, 7],
-    5: [2, 4, 8],
-    6: [3, 7],
-    7: [4, 6, 8],
-    8: [5, 7]
-  };
-  return adjacentPositions[fromIndex].includes(toIndex);
-}
+// Validar un movimiento
+function isValidMove(fromCell, toCell) {
+    if (boardState[toCell]) return false; // Celda destino ocupada
 
-function checkWin(player) {
-  const winningCombinations = [
-    [0, 1, 2], [3, 4, 5], [6, 7, 8], // Horizontales
-    [0, 3, 6], [1, 4, 7], [2, 5, 8], // Verticales
-    // [0, 4, 8], [2, 4, 6],           // Diagonales
-  ];
+    const [fromRow, fromCol] = fromCell.split("-").map(Number);
+    const [toRow, toCol] = toCell.split("-").map(Number);
 
-  return winningCombinations.some(combo =>
-    combo.every(index => gameState[index] === player)
-  );
+    const rowDiff = Math.abs(fromRow - toRow);
+    const colDiff = Math.abs(fromCol - toCol);
+
+    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
 }
 
 // Reiniciar el juego
-resetBtn.addEventListener('click', resetGame);
-
 function resetGame() {
-  gameState.fill(null);
-  cells.forEach(cell => {
-    cell.style.backgroundColor = '';
-    cell.classList.remove('taken', 'selected');
-  });
-  currentPlayer = 'red';
-  remainingPieces = { red: 3, blue: 3 };
-  selectedPieceIndex = null;
-  turnInfo.textContent = 'Turno: Rojo';
+    location.reload();
 }
+
+// Configurar eventos
+function setupCellEvents() {
+    document.querySelectorAll(".cell").forEach((cell) => {
+        cell.addEventListener("click", handleCellClick);
+    });
+}
+
+// Iniciar el juego
+window.onload = () => {
+    initializeBoard();
+    setupCellEvents();
+};
