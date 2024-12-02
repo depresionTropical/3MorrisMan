@@ -52,7 +52,7 @@ function checkWin() {
     return null;
 }
 
-// Modificar la función handleCellClick para incluir el turno de la IA
+// Modificar la función handleCellClick 
 function handleCellClick(event) {
   const clickedCell = event.currentTarget.id;
 
@@ -64,7 +64,7 @@ function handleCellClick(event) {
 
           // Turno de la IA
           if (turn === "orange") {
-              setTimeout(playAI, 500); // Agregar un pequeño retraso para simular pensamiento
+              setTimeout(playAI, 1000); // Agregar un pequeño retraso para simular pensamiento
           }
       } else {
           alert("Movimiento no válido");
@@ -104,7 +104,8 @@ function movePiece(fromCell, toCell) {
 
 // Validar un movimiento
 function isValidMove(fromCell, toCell) {
-    if (boardState[toCell]) return false; // Celda destino ocupada
+    if (!document.getElementById(toCell)) return false; // Celda de destino no existe
+    if (boardState[toCell]) return false; // Celda de destino está ocupada
 
     const [fromRow, fromCol] = fromCell.split("-").map(Number);
     const [toRow, toCol] = toCell.split("-").map(Number);
@@ -112,8 +113,9 @@ function isValidMove(fromCell, toCell) {
     const rowDiff = Math.abs(fromRow - toRow);
     const colDiff = Math.abs(fromCol - toCol);
 
-    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1);
+    return (rowDiff === 1 && colDiff === 0) || (rowDiff === 0 && colDiff === 1); // Movimiento válido
 }
+
 
 // Reiniciar el juego
 function resetGame() {
@@ -129,75 +131,82 @@ function setupCellEvents() {
 
 // Determinar posibles movimientos de una ficha específica
 function getPossibleMoves(cellId) {
-  const [row, col] = cellId.split("-").map(Number);
-  const directions = [
-      [-1, 0], // Arriba
-      [1, 0],  // Abajo
-      [0, -1], // Izquierda
-      [0, 1],  // Derecha
-  ];
+    const [row, col] = cellId.split("-").map(Number);
+    const directions = [
+        [-1, 0], // Arriba
+        [1, 0],  // Abajo
+        [0, -1], // Izquierda
+        [0, 1],  // Derecha
+    ];
 
-  const moves = [];
-  directions.forEach(([dRow, dCol]) => {
-      const newRow = row + dRow;
-      const newCol = col + dCol;
-      const newCellId = `${newRow}-${newCol}`;
-      if (boardState[newCellId] === undefined) {
-          moves.push(newCellId);
-      }
-  });
+    const moves = [];
+    directions.forEach(([dRow, dCol]) => {
+        const newRow = row + dRow;
+        const newCol = col + dCol;
+        const newCellId = `${newRow}-${newCol}`;
 
-  return moves;
+        if (document.getElementById(newCellId) && !boardState[newCellId]) {
+            moves.push(newCellId); // Agregar si la celda existe y está vacía
+        }
+    });
+
+    return moves;
 }
+
 
 // Jugar como IA (fichas naranjas)
 function playAI() {
-  const orangeCells = Object.entries(boardState)
-      .filter(([cellId, color]) => color === "orange")
-      .map(([cellId]) => cellId);
+    const orangeCells = Object.entries(boardState)
+        .filter(([cellId, color]) => color === "orange")
+        .map(([cellId]) => cellId);
 
-  let bestMove = null;
+    let bestMove = null;
 
-  // Priorizar movimientos que bloqueen alineaciones de negras
-  for (const cell of orangeCells) {
-      const possibleMoves = getPossibleMoves(cell);
-      for (const move of possibleMoves) {
-          // Simular el movimiento
-          boardState[move] = "orange";
-          delete boardState[cell];
+    // Priorizar movimientos estratégicos
+    for (const cell of orangeCells) {
+        const possibleMoves = getPossibleMoves(cell);
+        for (const move of possibleMoves) {
+            // Simular el movimiento
+            boardState[move] = "orange";
+            delete boardState[cell];
 
-          // Verificar si bloquea una alineación negra
-          const winner = checkWin();
-          if (winner === "orange") {
-              bestMove = { from: cell, to: move };
-          }
+            // Verificar si bloquea o gana
+            const winner = checkWin();
+            if (winner === "orange") {
+                bestMove = { from: cell, to: move };
+            }
 
-          // Restaurar estado original
-          boardState[cell] = "orange";
-          delete boardState[move];
+            // Restaurar estado
+            boardState[cell] = "orange";
+            delete boardState[move];
 
-          if (bestMove) break;
-      }
-      if (bestMove) break;
-  }
+            if (bestMove) break;
+        }
+        if (bestMove) break;
+    }
 
-  // Si no se encontró un movimiento para bloquear o ganar, elegir aleatoriamente
-  if (!bestMove) {
-      const randomCell = orangeCells[Math.floor(Math.random() * orangeCells.length)];
-      const possibleMoves = getPossibleMoves(randomCell);
-      if (possibleMoves.length > 0) {
-          const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-          bestMove = { from: randomCell, to: randomMove };
-      }
-  }
+    // Si no se encontró un movimiento estratégico, elegir aleatoriamente
+    if (!bestMove) {
+        for (const cell of orangeCells) {
+            const possibleMoves = getPossibleMoves(cell);
+            if (possibleMoves.length > 0) {
+                const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
+                bestMove = { from: cell, to: randomMove };
+                break;
+            }
+        }
+    }
 
-  // Realizar el movimiento seleccionado
-  if (bestMove) {
-      movePiece(bestMove.from, bestMove.to);
-      turn = "black";
-      updateTurnText();
-  }
+    // Realizar el movimiento
+    if (bestMove) {
+        movePiece(bestMove.from, bestMove.to);
+        turn = "black";
+        updateTurnText();
+    } else {
+        console.warn("La IA no encontró movimientos válidos.");
+    }
 }
+
 // Iniciar el juego
 window.onload = () => {
     initializeBoard();
