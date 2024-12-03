@@ -91,16 +91,20 @@ function movePiece(fromCell, toCell) {
     boardState[toCell] = boardState[fromCell];
     delete boardState[fromCell];
 
-    // Cambiar turno y verificar victoria
+    // Cambiar turno
+    turn = turn === "black" ? "orange" : "black";
+    updateTurnText();
+
+    // Verificar victoria después de un pequeño retraso
     const winner = checkWin();
     if (winner) {
-        alert(`¡Ganador: ${winner === "black" ? "Negras" : "Naranjas"}!`);
-        resetGame();
-    } else {
-        turn = turn === "black" ? "orange" : "black";
-        updateTurnText();
+        setTimeout(() => {
+            alert(`¡Ganador: ${winner === "black" ? "Negras" : "Naranjas"}!`);
+            resetGame();
+        }, 500); // Retraso de medio segundo para asegurar que el movimiento se vea claramente
     }
 }
+
 
 // Validar un movimiento
 function isValidMove(fromCell, toCell) {
@@ -154,51 +158,74 @@ function getPossibleMoves(cellId) {
 }
 
 
-// Jugar como IA (fichas naranjas)
+function evaluateMove(cell, move) {
+    let score = 0;
+
+    // Simular el movimiento
+    boardState[move] = "orange";
+    delete boardState[cell];
+
+    // Evaluar si este movimiento gana el juego
+    if (checkWin() === "orange") {
+        score += 100; // Alta prioridad para ganar
+    }
+
+    // Evaluar si bloquea al oponente
+    const opponentCells = Object.entries(boardState)
+        .filter(([_, color]) => color === "black")
+        .map(([cellId]) => cellId);
+
+    for (const opponentCell of opponentCells) {
+        const opponentMoves = getPossibleMoves(opponentCell);
+        for (const opponentMove of opponentMoves) {
+            boardState[opponentMove] = "black";
+            delete boardState[opponentCell];
+            if (checkWin() === "black") {
+                score += 50; // Prioridad para bloquear al oponente
+            }
+            boardState[opponentCell] = "black";
+            delete boardState[opponentMove];
+        }
+    }
+
+    // Evaluar control del tablero (ejemplo: moverse al centro)
+    const centralPositions = ["2-2", "1-2", "2-1", "2-3", "3-2"];
+    if (centralPositions.includes(move)) {
+        score += 10; // Beneficio adicional por ocupar una posición estratégica
+    }
+
+    // Restaurar estado
+    boardState[cell] = "orange";
+    delete boardState[move];
+
+    return score;
+}
+// estrategia de la IA
 function playAI() {
     const orangeCells = Object.entries(boardState)
         .filter(([cellId, color]) => color === "orange")
         .map(([cellId]) => cellId);
 
     let bestMove = null;
+    let bestScore = -Infinity;
 
-    // Priorizar movimientos estratégicos
+    // Evaluar todos los movimientos posibles
     for (const cell of orangeCells) {
         const possibleMoves = getPossibleMoves(cell);
         for (const move of possibleMoves) {
-            // Simular el movimiento
-            boardState[move] = "orange";
-            delete boardState[cell];
-
-            // Verificar si bloquea o gana
-            const winner = checkWin();
-            if (winner === "orange") {
+            const moveScore = evaluateMove(cell, move);
+            if (moveScore > bestScore) {
+                bestScore = moveScore;
                 bestMove = { from: cell, to: move };
             }
-
-            // Restaurar estado
-            boardState[cell] = "orange";
-            delete boardState[move];
-
-            if (bestMove) break;
-        }
-        if (bestMove) break;
-    }
-
-    // Si no se encontró un movimiento estratégico, elegir aleatoriamente
-    if (!bestMove) {
-        for (const cell of orangeCells) {
-            const possibleMoves = getPossibleMoves(cell);
-            if (possibleMoves.length > 0) {
-                const randomMove = possibleMoves[Math.floor(Math.random() * possibleMoves.length)];
-                bestMove = { from: cell, to: randomMove };
-                break;
-            }
         }
     }
 
-    // Realizar el movimiento
+    // Realizar el mejor movimiento encontrado
     if (bestMove) {
+        console.log("Movimiento de la IA:", bestMove);
+        console.log("Puntaje:", bestScore);
+
         movePiece(bestMove.from, bestMove.to);
         turn = "black";
         updateTurnText();
