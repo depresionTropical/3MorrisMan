@@ -1,8 +1,9 @@
 // script.js
 
-let turn = "black"; // Empieza el jugador negro
+let turn = null; // Empieza el jugador negro
 let selectedCell = null; // Celda seleccionada para mover
 const boardState = {}; // Estado del tablero
+const win = null;
 
 const winningCombinations = [
     ["1-1", "1-2", "1-3"],
@@ -47,6 +48,8 @@ function checkWin() {
     for (const combination of winningCombinations) {
         const [a, b, c] = combination;
         if (boardState[a] && boardState[a] === boardState[b] && boardState[a] === boardState[c]) {
+            // win = boardState[a];
+            console.log("Ganador:", boardState[a]);
             return boardState[a];
         }
     }
@@ -55,26 +58,28 @@ function checkWin() {
 
 // Modificar la función handleCellClick 
 function handleCellClick(event) {
-  const clickedCell = event.currentTarget.id;
+    console.log(boardState);
+    turn ="black";
+const clickedCell = event.currentTarget.id;
 
-  if (selectedCell) {
-      // Si hay una celda seleccionada, intenta mover la ficha
-      if (isValidMove(selectedCell, clickedCell)) {
-          movePiece(selectedCell, clickedCell);
-          selectedCell = null; // Deselecciona
+    if (selectedCell) {
+        // Si hay una celda seleccionada, intenta mover la ficha
+        if (isValidMove(selectedCell, clickedCell)) {
+            movePiece(selectedCell, clickedCell);
+            selectedCell = null; // Deselecciona
 
-          // Turno de la IA
-          if (turn === "orange") {
-              setTimeout(playAI, 1000); // Agregar un pequeño retraso para simular pensamiento
-          }
-      } else {
-          alert("Movimiento no válido");
-      }
-  } else if (boardState[clickedCell] === turn) {
-      // Selecciona la celda si pertenece al jugador en turno
-      selectedCell = clickedCell;
-      document.getElementById(clickedCell).classList.add("selected");
-  }
+            // Turno de la IA
+            if (turn === "orange") {
+                setTimeout(playAI, 1000); // Agregar un pequeño retraso para simular pensamiento
+            }
+        } else {
+            alert("Movimiento no válido");
+        }
+    } else if (boardState[clickedCell] === turn) {
+        // Selecciona la celda si pertenece al jugador en turno
+        selectedCell = clickedCell;
+        document.getElementById(clickedCell).classList.add("selected");
+    }
 }
 
 // Mover una ficha
@@ -124,6 +129,7 @@ function isValidMove(fromCell, toCell) {
 
 // Reiniciar el juego
 function resetGame() {
+    tunr = null;
     location.reload();
 }
 
@@ -160,7 +166,14 @@ function getPossibleMoves(cellId) {
 
 function evaluateMove(cell, move) {
     let score = 0;
-
+    const importantLines = [
+        ["1-1", "1-2", "1-3"], // Fila superior
+        ["2-1", "2-2", "2-3"], // Fila central
+        ["3-1", "3-2", "3-3"], // Fila inferior
+        ["1-1", "2-1", "3-1"], // Columna izquierda
+        ["1-2", "2-2", "3-2"], // Columna central
+        ["1-3", "2-3", "3-3"], // Columna derecha
+    ];
     // 1. Simular el movimiento y evaluar si el jugador puede ganar
     boardState[move] = "orange"; // Mover la pieza de la IA
     delete boardState[cell]; // Eliminar la pieza de la celda original
@@ -172,23 +185,26 @@ function evaluateMove(cell, move) {
 
     // 2. Evaluar si bloquea al oponente (impide que el oponente gane)
     const opponentCells = Object.entries(boardState)
-        .filter(([_, color]) => color === "black") // Encontrar las piezas del oponente
-        .map(([cellId]) => cellId);
+    .filter(([_, color]) => color === "black") // Encontrar las piezas del oponente
+    .map(([cellId]) => cellId);
 
-    for (const opponentCell of opponentCells) {
-        const opponentMoves = getPossibleMoves(opponentCell);
-        for (const opponentMove of opponentMoves) {
-            boardState[opponentMove] = "black"; // Simula el movimiento del oponente
-            delete boardState[opponentCell];
-            // Si este movimiento del oponente gana, bloqueamos esa celda
-            if (checkWin() === "black") {
-                score += 50; // Valoramos positivamente bloquear al oponente
-            }
-            // Restaurar el tablero a su estado original después de simular el movimiento
-            boardState[opponentCell] = "black";
-            delete boardState[opponentMove];
-        }
+
+
+    importantLines.forEach((line) => {
+    // Contar cuántas celdas están ocupadas por fichas negras
+    const opponentCount = line.filter(cellId => boardState[cellId] === "black").length;
+
+    // Identificar celdas vacías en la línea
+    const emptyCells = line.filter(cellId => !boardState[cellId]);
+
+    // Verificar si mi movimiento llena una celda vacía que bloquea al oponente
+    if (opponentCount === 2 && emptyCells.includes(move)) {
+        score += 50; // Incrementar el puntaje si bloquea al oponente
+        
     }
+    });
+
+
 
     // 3. Posición estratégica del movimiento (por ejemplo, centro y esquinas)
     const centralPositions = ["2-2", "1-2", "2-1", "2-3", "3-2"];
@@ -197,14 +213,7 @@ function evaluateMove(cell, move) {
     }
 
     // 4. Control de las líneas y posiciones clave 
-    const importantLines = [
-        ["1-1", "1-2", "1-3"], // Fila superior
-        ["2-1", "2-2", "2-3"], // Fila central
-        ["3-1", "3-2", "3-3"], // Fila inferior
-        ["1-1", "2-1", "3-1"], // Columna izquierda
-        ["1-2", "2-2", "3-2"], // Columna central
-        ["1-3", "2-3", "3-3"], // Columna derecha
-    ];
+    
 
     importantLines.forEach((line) => {
         const occupied = line.filter(cellId => boardState[cellId] === "orange");
@@ -290,13 +299,15 @@ function playAI() {
             }
         }
     }
+    const selectedCell = bestMove.from;
+
 
     // Realizar el mejor movimiento encontrado
     if (bestMove) {
         console.log("Movimiento de la IA:", bestMove);
         console.log("Puntaje:", bestScore);
 
-        movePiece(bestMove.from, bestMove.to);
+        movePiece(selectedCell, bestMove.to);
         turn = "black";
         updateTurnText();
     } else {
