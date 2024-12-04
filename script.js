@@ -17,10 +17,11 @@ const winningCombinations = [
 function initializeBoard() {
     const initialPositions = {
         "1-1": "black",
-        "1-3": "black",
-        "3-2": "black",
         "1-2": "orange",
+        "1-3": "black",
+        
         "3-1": "orange",
+        "3-2": "black",
         "3-3": "orange",
     };
 
@@ -214,6 +215,7 @@ function playAI() {
         const possibleMoves = getPossibleMoves(cell);
         for (const move of possibleMoves) {
             const moveScore = evaluateMove(cell, move);
+            console.log("Movimiento:", { from: cell, to: move }, "Puntaje:", moveScore);
             if (moveScore > bestScore) {
                 bestScore = moveScore;
                 bestMove = { from: cell, to: move };
